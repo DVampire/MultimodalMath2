@@ -1,4 +1,5 @@
 import datasets
+import pandas as pd
 from datasets import concatenate_datasets
 import os
 import sys
@@ -61,6 +62,9 @@ def process(output_path):
 
             question_raw = example.pop('problem')
             question_images = example.pop('images')
+
+            print(type(question_images[0]))
+            exit()
 
             options_label = ['A', 'B', 'C', 'D']
             options = example.pop('choices')
@@ -136,7 +140,11 @@ def process(output_path):
     gsm8k_test_dataset.to_parquet(os.path.join(gsm8k_output_path, 'test.parquet'))
 
 if __name__ == '__main__':
-    output_path = os.path.join(ROOT, 'datasets', 'processed')
-    os.makedirs(output_path, exist_ok=True)
+    # output_path = os.path.join(ROOT, 'datasets', 'processed')
+    # os.makedirs(output_path, exist_ok=True)
+    #
+    # process(output_path)
 
-    process(output_path)
+    path = os.path.join(ROOT, 'datasets', 'processed', 'geometry3k')
+    dataset = datasets.load_dataset('parquet', data_files=os.path.join(path, 'train.parquet'), split='train')
+    print(dataset[0])

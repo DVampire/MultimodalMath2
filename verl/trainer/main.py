@@ -34,6 +34,7 @@ def main():
     del cli_args.config
 
     default_config = OmegaConf.structured(PPOConfig())
+
     ppo_config = OmegaConf.merge(default_config, file_config, cli_args)
     ppo_config = OmegaConf.to_object(ppo_config)
 

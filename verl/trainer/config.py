@@ -17,7 +17,8 @@ PPO config
 
 import os
 from dataclasses import asdict, dataclass, field, fields, is_dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
+from omegaconf import ListConfig
 
 from verl.workers.config import WorkerConfig
 
@@ -33,8 +34,8 @@ def recursive_post_init(dataclass_obj):
 
 @dataclass
 class DataConfig:
-    train_files: str = ""
-    val_files: str = ""
+    train_files: ListConfig = field(default_factory=lambda: ListConfig([]))
+    val_files: ListConfig = field(default_factory=lambda: ListConfig([]))
     prompt_key: str = "prompt"
     max_prompt_length: int = 512
     max_response_length: int = 512

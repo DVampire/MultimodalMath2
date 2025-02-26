@@ -15,13 +15,16 @@
 import math
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
+
+import datasets
 from omegaconf import ListConfig
 import copy
 import pandas as pd
 
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 from PIL import Image
+import io
 from PIL.Image import Image as ImageObject
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer, ProcessorMixin
@@ -46,6 +49,8 @@ def collate_fn(features: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     return {**tensors, **non_tensors}
 
+def bytes_to_pil(img_bytes):
+    return Image.open(io.BytesIO(img_bytes))
 
 def process_image(image: ImageObject, max_pixels: int, min_pixels: int) -> ImageObject:
     if (image.width * image.height) > max_pixels:
@@ -96,28 +101,30 @@ class RLHFDataset(Dataset):
         self._read_files_and_tokenize()
 
     def _read_files_and_tokenize(self):
-        dataframes = []
+        datas = []
         for parquet_file in self.parquet_files:
             # read parquet files and cache
-            dataframe = pd.read_parquet(parquet_file)
-            dataframes.append(dataframe)
-        self.dataframe = pd.concat(dataframes)
+            data = datasets.load_dataset("parquet", data_files=parquet_file, split="train")
+            datas.append(data)
+        datas = concatenate_datasets(datas)
+        self.dataset = datas
 
     def __len__(self):
-        return len(self.dataframe)
+        return len(self.dataset)
 
     def __getitem__(self, index):
         """
         Note that we also return the raw_input_ids so that it can be combined with other chat template
         """
-        row_dict = self.dataframe.iloc[index].to_dict()
+        row_dict = self.dataset[index]
         messages = [
             {"role": "system", "content": r"Please reason step by step, and put your final answer within \boxed{}."},
             {"role": "user", "content": row_dict[self.prompt_key]},
         ]
         prompt = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
 
-        if "images" in row_dict:  # expand image token
+        if "images" in row_dict and row_dict["images"]:  # expand image token
+
             raw_prompt = prompt.replace("<image>", "<|vision_start|><|image_pad|><|vision_end|>")
             row_dict["images"] = [
                 process_image(image, self.max_pixels, self.min_pixels) for image in row_dict["images"]
@@ -152,7 +159,7 @@ class RLHFDataset(Dataset):
             truncation=self.truncation,
         )
 
-        if "images" in row_dict:
+        if "images" in row_dict and row_dict["images"]:
             position_ids = get_rope_index(
                 self.processor,
                 input_ids=input_ids,
