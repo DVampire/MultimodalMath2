@@ -360,7 +360,7 @@ class RayPPOTrainer:
 
     def _create_dataloader(self):
         self.train_dataset = RLHFDataset(
-            data_path=self.config.data.train_files,
+            parquet_files=self.config.data.train_files,
             tokenizer=self.tokenizer,
             processor=self.processor,
             prompt_key=self.config.data.prompt_key,
@@ -387,7 +387,7 @@ class RayPPOTrainer:
         )
 
         self.val_dataset = RLHFDataset(
-            data_path=self.config.data.val_files,
+            parquet_files=self.config.data.val_files,
             tokenizer=self.tokenizer,
             processor=self.processor,
             prompt_key=self.config.data.prompt_key,

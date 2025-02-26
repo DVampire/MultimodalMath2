@@ -14,7 +14,10 @@
 
 import math
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
+from omegaconf import ListConfig
+import copy
+import pandas as pd
 
 import torch
 from datasets import load_dataset
@@ -68,7 +71,7 @@ class RLHFDataset(Dataset):
 
     def __init__(
         self,
-        data_path: str,
+        parquet_files: Union[str, List[str]],
         tokenizer: PreTrainedTokenizer,
         processor: Optional[ProcessorMixin],
         prompt_key="prompt",
@@ -85,21 +88,29 @@ class RLHFDataset(Dataset):
         self.max_pixels = max_pixels
         self.min_pixels = min_pixels
 
-        if "@" in data_path:
-            data_path, data_split = data_path.split("@")
-        else:
-            data_split = "train"
+        if not isinstance(parquet_files, (List, ListConfig)):
+            parquet_files = [parquet_files]
 
-        self.dataset = load_dataset(data_path, split=data_split)
+        self.parquet_files = copy.deepcopy(parquet_files)
+
+        self._read_files_and_tokenize()
+
+    def _read_files_and_tokenize(self):
+        dataframes = []
+        for parquet_file in self.parquet_files:
+            # read parquet files and cache
+            dataframe = pd.read_parquet(parquet_file)
+            dataframes.append(dataframe)
+        self.dataframe = pd.concat(dataframes)
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.dataframe)
 
     def __getitem__(self, index):
         """
         Note that we also return the raw_input_ids so that it can be combined with other chat template
         """
-        row_dict = self.dataset[index]
+        row_dict = self.dataframe.iloc[index].to_dict()
         messages = [
             {"role": "system", "content": r"Please reason step by step, and put your final answer within \boxed{}."},
             {"role": "user", "content": row_dict[self.prompt_key]},
