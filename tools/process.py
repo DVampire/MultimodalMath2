@@ -62,10 +62,6 @@ def process(output_path):
 
             question_raw = example.pop('problem')
             question_images = example.pop('images')
-
-            print(type(question_images[0]))
-            exit()
-
             options_label = ['A', 'B', 'C', 'D']
             options = example.pop('choices')
             options_string = ""
